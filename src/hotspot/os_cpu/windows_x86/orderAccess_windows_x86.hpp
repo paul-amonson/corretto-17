@@ -58,7 +58,19 @@ inline void OrderAccess::fence() {
   compiler_barrier();
 }
 
-inline void OrderAccess::cross_modify_fence_impl() {
+inline void OrderAccess::cross_modify_fence_impl()
+#if _MSC_VER >= 1928
+{
+//_serialize() intrinsic is supported starting from VS2019-16.7.2
+  if (VM_Version::supports_serialize()) {
+    _serialize();
+  } else {
+    int regs[4];
+    __cpuid(regs, 0);
+  }
+}
+#else
+    {
   int regs[4];
   __cpuid(regs, 0);
 }
