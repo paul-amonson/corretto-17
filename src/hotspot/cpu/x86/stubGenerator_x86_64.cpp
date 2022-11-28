@@ -4415,6 +4415,7 @@ class StubGenerator: public StubCodeGenerator {
     const Register state = c_rarg5;
     const Address subkeyH_mem(rbp, 2 * wordSize);
     const Register subkeyHtbl = r11;
+    const Register avx512_subkeyHtbl = r13;
     const Address counter_mem(rbp, 3 * wordSize);
     const Register counter = r12;
 #else
@@ -4442,8 +4443,18 @@ class StubGenerator: public StubCodeGenerator {
 #endif
     __ movptr(subkeyHtbl, subkeyH_mem);
     __ movptr(counter, counter_mem);
+// Save rbp and rsp
+    __ push(rbp);
+    __ movq(rbp, rsp);
+// Align stack
+    __ andq(rsp, -64);
+    __ subptr(rsp, 96 * longSize); // Create space on the stack for htbl entries
+    __ movptr(avx512_subkeyHtbl, rsp);
 
     __ aesgcm_encrypt(in, len, ct, out, key, state, subkeyHtbl, counter);
+
+    __ movq(rsp, rbp);
+    __ pop(rbp);
 
   // Restore state before leaving routine
 #ifdef _WIN64
