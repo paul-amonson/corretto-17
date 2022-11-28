@@ -5226,7 +5226,7 @@ void MacroAssembler::xmm_clear_mem(Register base, Register cnt, Register rtmp, X
 
   BIND(L_loop);
   if (MaxVectorSize >= 32) {
-    fill64_avx(base, 0, xtmp, use64byteVector);
+    fill64(base, 0, xtmp, use64byteVector);
   } else {
     movdqu(Address(base,  0), xtmp);
     movdqu(Address(base, 16), xtmp);
@@ -5243,7 +5243,7 @@ void MacroAssembler::xmm_clear_mem(Register base, Register cnt, Register rtmp, X
   if (use64byteVector) {
     addptr(cnt, 8);
     jccb(Assembler::equal, L_end);
-    fill64_masked_avx(3, base, 0, xtmp, mask, cnt, rtmp, true);
+    fill64_masked(3, base, 0, xtmp, mask, cnt, rtmp, true);
     jmp(L_end);
   } else {
     addptr(cnt, 4);
@@ -5262,7 +5262,7 @@ void MacroAssembler::xmm_clear_mem(Register base, Register cnt, Register rtmp, X
   addptr(cnt, 4);
   jccb(Assembler::lessEqual, L_end);
   if (UseAVX > 2 && MaxVectorSize >= 32 && VM_Version::supports_avx512vl()) {
-    fill32_masked_avx(3, base, 0, xtmp, mask, cnt, rtmp);
+    fill32_masked(3, base, 0, xtmp, mask, cnt, rtmp);
   } else {
     decrement(cnt);
 
@@ -5304,7 +5304,7 @@ void MacroAssembler::clear_mem(Register base, int cnt, Register rtmp, XMMRegiste
     jccb(Assembler::less, LOOP);
   }
   for (int i = start64; i < vector64_count; i++) {
-    fill64_avx(base, i * 64, xtmp, use64byteVector);
+    fill64(base, i * 64, xtmp, use64byteVector);
   }
 
   // Clear remaining 64 byte tail.
@@ -8489,66 +8489,6 @@ void MacroAssembler::evmovdqu(BasicType type, KRegister kmask, Address dst, XMMR
 
 #if COMPILER2_OR_JVMCI
 
-
-// Set memory operation for length "less than" 64 bytes.
-void MacroAssembler::fill64_masked_avx(uint shift, Register dst, int disp,
-                                       XMMRegister xmm, KRegister mask, Register length,
-                                       Register temp, bool use64byteVector) {
-  assert(MaxVectorSize >= 32, "vector length should be >= 32");
-  assert(shift != 0, "shift value should be 1 (short),2(int) or 3(long)");
-  BasicType type[] = { T_BYTE, T_SHORT,  T_INT,   T_LONG};
-  if (!use64byteVector) {
-    fill32_avx(dst, disp, xmm);
-    subptr(length, 32 >> shift);
-    fill32_masked_avx(shift, dst, disp + 32, xmm, mask, length, temp);
-  } else {
-    assert(MaxVectorSize == 64, "vector length != 64");
-    movl(temp, 1);
-    shlxl(temp, temp, length);
-    subptr(temp, 1);
-    kmovwl(mask, temp);
-    evmovdqu(type[shift], mask, Address(dst, disp), xmm, Assembler::AVX_512bit);
-  }
-}
-
-
-void MacroAssembler::fill32_masked_avx(uint shift, Register dst, int disp,
-                                       XMMRegister xmm, KRegister mask, Register length,
-                                       Register temp) {
-  assert(MaxVectorSize >= 32, "vector length should be >= 32");
-  assert(shift != 0, "shift value should be 1 (short), 2(int) or 3(long)");
-  BasicType type[] = { T_BYTE, T_SHORT,  T_INT,   T_LONG};
-  movl(temp, 1);
-  shlxl(temp, temp, length);
-  subptr(temp, 1);
-  kmovwl(mask, temp);
-  evmovdqu(type[shift], mask, Address(dst, disp), xmm, Assembler::AVX_256bit);
-}
-
-void MacroAssembler::fill32(Address dst, XMMRegister xmm) {
-  assert(MaxVectorSize >= 32, "vector length should be >= 32");
-  vmovdqu(dst, xmm);
-}
-
-void MacroAssembler::fill32_avx(Register dst, int disp, XMMRegister xmm) {
-  fill32(Address(dst, disp), xmm);
-}
-
-void MacroAssembler::fill64(Address dst, XMMRegister xmm, bool use64byteVector) {
-  assert(MaxVectorSize >= 32, "vector length should be >= 32");
-  if (!use64byteVector) {
-    fill32(dst, xmm);
-    fill32(dst.plus_disp(32), xmm);
-  } else {
-    evmovdquq(dst, xmm, Assembler::AVX_512bit);
-  }
-}
-
-void MacroAssembler::fill64_avx(Register dst, int disp, XMMRegister xmm, bool use64byteVector) {
-  fill64(Address(dst, disp), xmm, use64byteVector);
-}
-
-
 void MacroAssembler::fill_masked(BasicType bt, Address dst, XMMRegister xmm, KRegister mask,
                                  Register length, Register temp, int vec_enc) {
   // Computing mask for predicated vector store.
@@ -8560,8 +8500,8 @@ void MacroAssembler::fill_masked(BasicType bt, Address dst, XMMRegister xmm, KRe
 
 // Set memory operation for length "less than" 64 bytes.
 void MacroAssembler::fill64_masked(uint shift, Register dst, int disp,
-                                       XMMRegister xmm, KRegister mask, Register length,
-                                       Register temp, bool use64byteVector) {
+                                   XMMRegister xmm, KRegister mask, Register length,
+                                   Register temp, bool use64byteVector) {
   assert(MaxVectorSize >= 32, "vector length should be >= 32");
   BasicType type[] = { T_BYTE, T_SHORT, T_INT, T_LONG};
   if (!use64byteVector) {
@@ -8583,6 +8523,20 @@ void MacroAssembler::fill32_masked(uint shift, Register dst, int disp,
   fill_masked(type[shift], Address(dst, disp), xmm, mask, length, temp, Assembler::AVX_256bit);
 }
 
+void MacroAssembler::fill32(Address dst, XMMRegister xmm) {
+  assert(MaxVectorSize >= 32, "vector length should be >= 32");
+  vmovdqu(dst, xmm);
+}
+
+void MacroAssembler::fill64(Address dst, XMMRegister xmm, bool use64byteVector) {
+  assert(MaxVectorSize >= 32, "vector length should be >= 32");
+  if (!use64byteVector) {
+    fill32(dst, xmm);
+    fill32(dst.plus_disp(32), xmm);
+  } else {
+    evmovdquq(dst, xmm, Assembler::AVX_512bit);
+  }
+}
 
 void MacroAssembler::fill32(Register dst, int disp, XMMRegister xmm) {
   assert(MaxVectorSize >= 32, "vector length should be >= 32");
