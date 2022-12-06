@@ -1815,6 +1815,7 @@ PrintJavaVersion(JNIEnv *env, jboolean extraLF)
               );
 
     (*env)->CallStaticVoidMethod(env, ver, print, printTo);
+    printf("*** Intel(r) Patched 2022.\n");
 }
 
 /*
