@@ -1707,6 +1707,7 @@ typedef HashtableEntry<InstanceKlass*, mtClass>  KlassHashtableEntry;
   declare_c2_type(MulFNode, MulNode)                                      \
   declare_c2_type(MulDNode, MulNode)                                      \
   declare_c2_type(MulHiLNode, Node)                                       \
+  declare_c2_type(UMulHiLNode, Node)                                      \
   declare_c2_type(AndINode, MulINode)                                     \
   declare_c2_type(AndLNode, MulLNode)                                     \
   declare_c2_type(LShiftINode, Node)                                      \
